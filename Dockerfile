@@ -16,8 +16,9 @@ COPY processor /src
 RUN mkdir build \
     && cd build \
     && cmake .. \
-    && cmake --build . --target processor -j 8 \
-    && cmake --install . --prefix "/out"
+    && cmake --build . -j 8 \
+    && cmake --install . --prefix "/out" \
+    && ctest
 
 CMD ["/out/bin/generator", "|", "/out/bin/processor"]
 

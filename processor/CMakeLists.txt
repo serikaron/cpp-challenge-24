@@ -3,39 +3,15 @@ project(processor)
 
 set(CMAKE_CXX_STANDARD 26)
 
-add_library(core STATIC
-        Broker.cpp
-        Broker.h
-        Message.h
-)
+add_subdirectory(core)
+add_subdirectory(main)
 
-add_executable(processor main.cpp)
-target_link_libraries(processor PRIVATE core)
+enable_testing()
+add_subdirectory(test)
 
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "/out"
             CACHE PATH "default install path" FORCE)
 endif ()
-
-enable_testing()
-
-Include(FetchContent)
-
-FetchContent_Declare(
-        Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.5.3)
-
-FetchContent_MakeAvailable(Catch2)
-
-list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
-include(CTest)
-include(Catch)
-
-add_executable(core_tests
-        Broker.test.cpp
-)
-target_link_libraries(core_tests PRIVATE Catch2::Catch2WithMain core)
-catch_discover_tests(core_tests)
 
 install(TARGETS processor core_tests)

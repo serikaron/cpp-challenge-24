@@ -7,6 +7,35 @@
 #include <iostream>
 #include <ranges>
 
+Broker::Broker(std::istream &stream, SharedMapping mapping)
+: stream(stream)
+, mapping(mapping)
+{
+}
+
+void printMessage(const Message &message) {
+    switch (message.messageType) {
+        case none:
+//                std::cout << input << std::endl;
+            break;
+        case request:
+            std::cout << "request: " << message.id << " - " << message.path << std::endl;
+            break;
+        case response:
+            std::cout << "response: " << message.id << " - " << message.code << std::endl;
+            break;
+    }
+}
+
+void Broker::run() {
+    std::string input;
+    while (std::getline(stream, input)) {
+        auto message = handleInput(std::move(input));
+        mapping->handleMessage(message);
+//        printMessage(message);
+    }
+}
+
 Message Broker::handleInput(std::string &&line) {
     auto trim = [](unsigned char c) { return !std::isspace(c); };
     line.erase(

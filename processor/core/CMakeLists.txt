@@ -7,4 +7,6 @@ add_library(core STATIC
         Broker.cpp
         Broker.h
         Message.h
+        Mapping.cpp
+        Mapping.h
 )

@@ -7,13 +7,21 @@
 
 #include <vector>
 #include <string>
+#include <istream>
 #include "Message.h"
+#include "Mapping.h"
+
+class Mapping;
 
 class Broker {
 public:
-    Message handleInput(std::string &&line);
+    Broker(std::istream &stream, SharedMapping mapping);
+
+public:
+    void run();
 
 private:
+    Message handleInput(std::string &&line);
     [[nodiscard]] bool isRequestBlock() const;
     [[nodiscard]] bool isResponseBlock() const;
     [[nodiscard]] std::string getPath() const;
@@ -21,8 +29,10 @@ private:
     [[nodiscard]] std::string getID() const;
 
 private:
+    std::istream &stream;
     using Block = std::vector<std::string>;
     Block block;
+    SharedMapping mapping;
 };
 
 

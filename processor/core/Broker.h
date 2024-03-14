@@ -16,6 +16,8 @@ class Mapping;
 class Broker {
 public:
     Broker(std::istream &stream, SharedMapping mapping);
+    Broker(const Broker &) = delete;
+    Broker& operator=(const Broker &) = delete;
 
 public:
     void run();

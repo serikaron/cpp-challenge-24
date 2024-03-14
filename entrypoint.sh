@@ -1,0 +1,1 @@
+/out/bin/generator | /out/bin/processor -o /tmp/challenge/out.csv

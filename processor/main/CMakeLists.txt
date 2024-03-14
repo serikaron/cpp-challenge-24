@@ -3,5 +3,7 @@ project(main)
 
 set(CMAKE_CXX_STANDARD 26)
 
-add_executable(processor main.cpp)
+add_executable(processor main.cpp
+        Processor.cpp
+        Processor.h)
 target_link_libraries(processor PRIVATE core)

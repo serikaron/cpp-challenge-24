@@ -19,6 +19,7 @@ Persistor::Persistor(std::string &&saveTo,
 }
 
 void Persistor::save() {
+    std::cout << "save" << std::endl;
     save(std::move(genContent()));
 }
 
@@ -61,7 +62,7 @@ Persistor::Content Persistor::genContent() {
 
 void Persistor::save(Persistor::Content &&content) {
     std::filesystem::create_directories(std::filesystem::path(saveTo).parent_path());
-    std::ofstream file(saveTo);
+    std::ofstream file(saveTo, std::ios::app);
     if (!file.is_open()) {
         std::cerr << "ERROR: open file failed!!! [" << saveTo << "]" << std::endl;
         return;

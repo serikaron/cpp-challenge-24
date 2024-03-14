@@ -8,6 +8,7 @@ RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.3/cmake-3.28.3
     && ln -s /opt/cmake-3.28.3/bin/* /usr/local/bin
 
 COPY generator /out/bin/
+COPY entrypoint.sh /out/bin/entrypoint.sh
 
 WORKDIR /src
 
@@ -18,7 +19,9 @@ RUN mkdir build \
     && cmake .. \
     && cmake --build . -j 8 \
     && cmake --install . --prefix "/out" \
-    && SAVE_TO=/tmp/cpp-challenge/output.csv ctest
+    && SAVE_PATH=/tmp/cpp-challenge ctest \
+    && rm -rf /tmp/cpp-challenge
 
-CMD ["/out/bin/generator", "|", "/out/bin/processor"]
+ENTRYPOINT ["/bin/bash", "/out/bin/entrypoint.sh"]
+#CMD ["/out/bin/generator", "|", "/out/bin/processor"]
 

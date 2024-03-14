@@ -1,54 +1,63 @@
-# Kerno's C++ Linux Engineering Challenge
+# Complete the Challenge
+fork from [Kerno's C++ Linux Engineering Challenge](https://github.com/serikaron/cpp-challenge-24)
 
-Howdy 👋  You are here because you think you've got what it takes to join the ranks of an early-stage going into hyper-growth high-tech startup!
-Now, shall put it to test?
+## How to Use
+* Build the image
 
-We are in the lookout for beast-mode backend developers, mindful of architecture, data structures, performance and good engineering work — but whom always keep an eye on timely, customer-facing value delivery.
-
-You are proficient in C++, you write clean but high-performance code and know how to take advantage of the internals of your compiler and your toolchain.
-
-
-**But don't be shy!**
-We place great value in education and experience; but we also recognize that talent is built on passion and hours dedicated to deliberate practice and learning... so don't shy away from applying if you feel you have what it takes!
-
-
-
-## The challenge:
-Write a C++ (linux) program "processor" that receives a stream of http "messages" (both inbound and outbound) via unix pipe.
-The program maintains a minute by minute aggregation map by **request path** and **response code** dimensions.
-Messages will not be ordered (you can receive 4 requests in a row, and subsequent responses), so you need to find a means to correlate them.
-Every minute the map should be printed to a file indicated by the `-o <filepath>` argument received by your program.
-
-
-### What we will be looking at?
-- your code does what it's supposed to (duh!)
-- your code is well organized and extensible (clean code practices)
-- your code leverages adequately language features (C++20 and on)
-
-
-### Some food for thought (a.k.a., nice to have's)
-- What would happen if we added messages in another protocol / format?
-- What would happen if the message rate exceeded your CPU capacity?
-- What would happen if some messages never got a response?
-
-
-### CPP is a very diverse universe
-We do favor CLANG and BAZEL for most things -- but feel free to use whatever suites you best at this time. We prefer to see a good structured CMake project if that's more in your toolbelt than a half-baked Bazel one.
-
-
-### Why THIS challenge?
-Although algos and binary searches and whatnot are important in life... part of your job will be figuring out protocols and building highly efficient data transformation pipelines in resource constrained environments... so it will look a bit (likely quite more complex tho) like this challenge.
-
-Was this too easy?... no worries... this is just a conversation starter.
-
-Also, do not shy away from expanding the functionality as you see fit -- this is a conversation started to discuss your code and technical decisions during our technical interview! Go and shine 😉
-
-
-## Clone this project to get started!
-It contains a little message generator binary for linux (run it in a non-privileged docker please) that you can use to get the messages streaming -- mind that you need an x86 arch host:
 ```bash
-$ ./generator | ./processor
+docker buildx build -t cpp-challenge --load --platform linux/x86_64 .
 ```
 
-### Deliverable
-Please be kind to provide Dockerfile(s) to build and and test your code... setting C++ environments can be a bit painful and we have a lot of applications to review!
+* Run
+
+```bash
+docker run --rm -it --name cpp -v <output/path>:/tmp/challenge cpp-challenge
+```
+    
+Replace <output/path> with your host path.
+
+You can check entrypoint.sh, which generates /tmp/challenge/out.csv inside the docker image.
+
+Upon successful execution, you will find out.csv in <output/path>.
+
+
+Alternatively, you can execute:
+```bash
+docker run --rm -it --name cpp --entrypoint='' cpp-challenge /bin/bash
+```
+to enter the container and then execute:
+```bash
+/out/bin/generator | /out/bin/processor -o <filepath>
+```
+
+## Code Structure
+Model (core directory) primarily consists of `Broker` and `Persistor` for logic processing, and `Mapping` for data storage.
+
+* Broker is responsible for receiving messages produced by `generator`, converting them into corresponding HTTP requests or responses, and storing them in Mapping.
+* Persistor retrieves paired Request Paths and Response Codes from Mapping and saves them to the specified file.
+* Broker and Persistor execute in their respective threads, accessing the shared Mapping with thread lock.
+
+The Processor in the main directory acts as a controller, coordinating actions between Broker and Persistor. Tests in the test directory implement simple tests for Broker and Persistor.
+
+## Some food for thought (a.k.a., nice to have's)
+
+* **What would happen if we added messages in another protocol / format?** 
+    
+Based on the principle of avoiding over-design, the current codebase has concrete Broker and Persistor. However, extending it is straightforward. Suppose we need to subscribe to messages from a Redis channel. This could be implemented in another Model, requiring only an Adapter to be implemented in the application's relevant code (currently under the main directory) to use the specific Broker.
+
+It's also possible to implement within the current Model. Renaming the existing Broker to PipelineBroker, then implementing a RedisBroker, and extracting a common base class Broker would suffice.
+
+Similarly, for Persistor, if it needs to go to a database or publish to a Redis channel, the same approach can be used for extension.
+
+* **What would happen if the message rate exceeded your CPU capacity?**
+
+I'm not entirely clear on this issue. Does it refer to messages produced by the generator exceeding the consuming of my program? If so, there might be several solutions:
+  * The simplest would be hardware upgrades. lol
+  * If it's a code issue, identifying which part of the code is consuming significant time using benchmarks and then addressing it.
+  * If it's an architectural problem, placing messages received by Broker into shared memory or Kafka, and processing them with multiple threads/processes/machines might help.
+  * If even reading messages from the generator is overwhelming, there might not be many other options. It's hard to optimize without specific knowledge of the generator's implementation.
+
+
+* **What would happen if some messages never got a response?**
+
+Upon receiving a request, record the current time, and after a certain period, treat it as an error.

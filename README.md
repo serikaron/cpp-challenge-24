@@ -41,7 +41,7 @@ The Processor in the main directory acts as a controller, coordinating actions b
 
 ## Some food for thought (a.k.a., nice to have's)
 
-* **What would happen if we added messages in another protocol / format?** 
+### **What would happen if we added messages in another protocol / format?** 
     
 Based on the principle of avoiding over-design, the current codebase has concrete Broker and Persistor. However, extending it is straightforward. Suppose we need to subscribe to messages from a Redis channel. This could be implemented in another Model, requiring only an Adapter to be implemented in the application's relevant code (currently under the main directory) to use the specific Broker.
 
@@ -49,15 +49,16 @@ It's also possible to implement within the current Model. Renaming the existing 
 
 Similarly, for Persistor, if it needs to go to a database or publish to a Redis channel, the same approach can be used for extension.
 
-* **What would happen if the message rate exceeded your CPU capacity?**
+### **What would happen if the message rate exceeded your CPU capacity?**
 
 I'm not entirely clear on this issue. Does it refer to messages produced by the generator exceeding the consuming of my program? If so, there might be several solutions:
-  * The simplest would be hardware upgrades. lol
-  * If it's a code issue, identifying which part of the code is consuming significant time using benchmarks and then addressing it.
-  * If it's an architectural problem, placing messages received by Broker into shared memory or Kafka, and processing them with multiple threads/processes/machines might help.
-  * If even reading messages from the generator is overwhelming, there might not be many other options. It's hard to optimize without specific knowledge of the generator's implementation.
+
+* The simplest would be hardware upgrades. lol
+* If it's a code issue, identifying which part of the code is consuming significant time using benchmarks and then addressing it.
+* If it's an architectural problem, placing messages received by Broker into shared memory or Kafka, and processing them with multiple threads/processes/machines might help.
+* If even reading messages from the generator is overwhelming, there might not be many other options. It's hard to optimize without specific knowledge of the generator's implementation.
 
 
-* **What would happen if some messages never got a response?**
+### **What would happen if some messages never got a response?**
 
 Upon receiving a request, record the current time, and after a certain period, treat it as an error.

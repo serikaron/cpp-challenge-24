@@ -6,11 +6,10 @@
 #include <regex>
 #include <iostream>
 #include <ranges>
+#include <thread>
 
 Broker::Broker(std::istream &stream, SharedMapping mapping)
-: stream(stream)
-, mapping(mapping)
-{
+        : stream(stream), mapping(mapping) {
 }
 
 void printMessage(const Message &message) {
@@ -28,11 +27,14 @@ void printMessage(const Message &message) {
 }
 
 void Broker::run() {
+    using namespace std::chrono_literals;
+
     std::string input;
     while (std::getline(stream, input)) {
         auto message = handleInput(std::move(input));
         mapping->handleMessage(message);
 //        printMessage(message);
+        std::this_thread::sleep_for(10ms);
     }
 }
 

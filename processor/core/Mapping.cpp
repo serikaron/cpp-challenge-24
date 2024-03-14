@@ -5,31 +5,44 @@
 #include "Mapping.h"
 #include "Message.h"
 #include <ranges>
-#include <functional>
+#include <algorithm>
 
 void Mapping::handleMessage(const Message &message) {
     switch (message.messageType) {
         case none:
             break;
         case request:
-            mapping[message.id] = MappingItem{
-                    message.id,
-                    message.path,
-                    message.code,
-                    MappingItem::State::pending
-            };
+            addPendingItem(message.id, message.path);
             break;
         case response:
-            auto iter = mapping.find(message.id);
-            if (iter != mapping.end()) {
-                iter->second.code = message.code;
-                iter->second.state = MappingItem::State::completed;
-            }
+            completeItem(message.id, message.code);
             break;
     }
 }
 
-Mapping::Stat Mapping::getStat() const {
+void Mapping::addPendingItem(const std::string &id, const std::string &path) {
+    std::scoped_lock<std::mutex> lock(mutex);
+    mapping[id] = MappingItem{
+            id,
+            path,
+            "",
+            MappingItem::State::pending
+    };
+}
+
+void Mapping::completeItem(const std::string &id, const std::string &code) {
+    std::scoped_lock<std::mutex> lock(mutex);
+    auto iter = mapping.find(id);
+    if (iter == mapping.end()) {
+        return;
+    }
+    iter->second.code = code;
+    iter->second.state = MappingItem::State::completed;
+}
+
+Mapping::Stat Mapping::getStat() {
+    std::scoped_lock<std::mutex> lock(mutex);
+
     int pendingCount = 0;
     int completedCount = 0;
     for (const auto &[key, val]: mapping) {
@@ -46,6 +59,8 @@ Mapping::Stat Mapping::getStat() const {
 }
 
 MappingItems Mapping::pickCompletedItems() {
+    std::scoped_lock<std::mutex> lock(mutex);
+
     MappingItems out;
     using Pair = std::pair<std::string, MappingItem>;
     auto isCompleted = [](const std::pair<std::string, MappingItem> &pair) {
@@ -53,7 +68,7 @@ MappingItems Mapping::pickCompletedItems() {
     };
 
     auto completed = mapping | std::views::filter(isCompleted);
-    std::ranges::transform(completed, std::back_inserter(out), [](const auto& pair) {
+    std::ranges::transform(completed, std::back_inserter(out), [](const auto &pair) {
         return pair.second;
     });
 

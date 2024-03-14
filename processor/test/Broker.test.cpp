@@ -4,65 +4,92 @@
 
 #include "catch2/catch_test_macros.hpp"
 #include "../core/Broker.h"
+#include "../core/Mapping.h"
 #include <vector>
 #include <algorithm>
+#include <sstream>
+#include <thread>
+#include <future>
 
-TEST_CASE("Receive a request", "[Broker]") {
-    std::vector lines{{
-                              "PATCH /profile/aambertin HTTP/1.1",
-                              "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)",
-                              "Host: dev-challenges.kerno.io",
-                              "Accept-Language: en-us",
-                              "X-Trace-ID: CAcICAYI",
-                              " ",
-                      }};
+TEST_CASE("Broker tests", "[Broker]") {
+    std::stringstream ss;
+    std::shared_ptr<Mapping> mapping = std::make_shared<Mapping>();
+    Broker broker{ss, mapping};
 
-    Broker broker;
+    std::mutex mutex;
+    auto brokerRun = [&broker, &mutex, &ss](const std::string &messageBlock) {
+        ss.clear();
+        ss << messageBlock;
+        std::async([&broker, &mutex] {
+            std::scoped_lock<std::mutex> lock(mutex);
+            broker.run();
+        })
+                .wait();
+    };
 
-    std::vector<Message> messages;
-    std::transform(lines.begin(), lines.end(),
-                   std::back_inserter(messages),
-                   [&broker](std::string &&line) {
-                       return broker.handleInput(std::move(line));
-                   });
+    // receive first request
+    {
+        brokerRun("PUT /feed/smadigan HTTP/1.1\n"
+                  "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n"
+                  "Host: dev-challenges.kerno.io\n"
+                  "Accept-Language: en-us\n"
+                  "X-Trace-ID: BgYHAgYB\n"
+                  " ");
 
-    std::vector<Message> noneMessages;
-    std::ranges::for_each(messages.begin(), messages.end() - 1, [](const auto &message) {
-        REQUIRE(message.messageType == MessageType::none);
-    });
+        auto [pending, completed] = mapping->getStat();
+        REQUIRE(pending == 1);
+        REQUIRE(completed == 0);
+    }
 
-    const auto &requestMessage = messages.back();
-    REQUIRE(requestMessage.messageType == MessageType::request);
-    REQUIRE(requestMessage.path == "/profile/aambertin");
-    REQUIRE(requestMessage.id == "CAcICAYI");
-}
+    // receive second request
+    {
+        brokerRun("GET /feed/aambertin HTTP/1.1\n"
+                  "User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)\n"
+                  "Host: dev-challenges.kerno.io\n"
+                  "Accept-Language: en-us\n"
+                  "X-Trace-ID: AwUCAwEC\n"
+                  " ");
 
-TEST_CASE("Receive a response", "[Broker]") {
-    std::vector lines{{
-                              "HTTP/1.1 501 NOT IMPLEMENTED",
-                              "Date: Wed Mar 13 2024 09:19:27 GMT+0000",
-                              "Server: nginx",
-                              "X-Trace-ID: CQMIAwQJ",
-                              "Connection: Closed",
-                              " ",
-                      }};
+        auto [pending, completed] = mapping->getStat();
+        REQUIRE(pending == 2);
+        REQUIRE(completed == 0);
+    }
 
-    Broker broker;
+    // receive second response
+    {
+        brokerRun("HTTP/1.1 501 NOT IMPLEMENTED\n"
+                  "Date: Thu Mar 14 2024 08:37:01 GMT+0000\n"
+                  "Server: nginx\n"
+                  "X-Trace-ID: AwUCAwEC\n"
+                  "Connection: Closed\n"
+                  " ");
 
-    std::vector<Message> messages;
-    std::transform(lines.begin(), lines.end(),
-                   std::back_inserter(messages),
-                   [&broker](std::string &&line) {
-                       return broker.handleInput(std::move(line));
-                   });
+        auto [pending, completed] = mapping->getStat();
+        REQUIRE(pending == 1);
+        REQUIRE(completed == 1);
+        auto items = std::move(mapping->pickCompletedItems());
+        REQUIRE(items.size() == 1);
+        REQUIRE(items.front().id == "AwUCAwEC");
+        REQUIRE(items.front().path == "/feed/aambertin");
+        REQUIRE(items.front().code == "501");
+    }
 
-    std::vector<Message> noneMessages;
-    std::ranges::for_each(messages.begin(), messages.end() - 1, [](const auto &message) {
-        REQUIRE(message.messageType == MessageType::none);
-    });
+    // receive first response
+    {
+        brokerRun("HTTP/1.1 401 UNAUTHORIZED\n"
+                  "Date: Thu Mar 14 2024 08:37:01 GMT+0000\n"
+                  "Server: nginx\n"
+                  "X-Trace-ID: BgYHAgYB\n"
+                  "Connection: Closed\n"
+                  " ");
 
-    const auto &responseMessage = messages.back();
-    REQUIRE(responseMessage.messageType == MessageType::response);
-    REQUIRE(responseMessage.code == "501");
-    REQUIRE(responseMessage.id == "CQMIAwQJ");
+        auto [pending, completed] = mapping->getStat();
+        REQUIRE(pending == 0);
+        REQUIRE(completed == 1);
+        auto items = std::move(mapping->pickCompletedItems());
+        REQUIRE(items.size() == 1);
+        REQUIRE(items.front().id == "BgYHAgYB");
+        REQUIRE(items.front().path == "/feed/smadigan");
+        REQUIRE(items.front().code == "401");
+    }
 }

@@ -9,6 +9,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <mutex>
 
 struct Message;
 
@@ -26,10 +27,15 @@ class Mapping {
 public:
     using Stat = std::tuple<int, int>;
     void handleMessage(const Message& message);
-    [[nodiscard]] Stat getStat() const;
+    [[nodiscard]] Stat getStat();
     MappingItems pickCompletedItems();
 
 private:
+    void addPendingItem(const std::string &id, const std::string& path);
+    void completeItem(const std::string &id, const std::string &code);
+
+private:
+    std::mutex mutex;
     using Map = std::map<std::string, MappingItem>;
     Map mapping;
 };

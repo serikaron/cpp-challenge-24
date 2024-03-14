@@ -9,4 +9,6 @@ add_library(core STATIC
         Message.h
         Mapping.cpp
         Mapping.h
+        Persistor.cpp
+        Persistor.h
 )

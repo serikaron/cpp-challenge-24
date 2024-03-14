@@ -18,7 +18,7 @@ RUN mkdir build \
     && cmake .. \
     && cmake --build . -j 8 \
     && cmake --install . --prefix "/out" \
-    && ctest
+    && SAVE_TO=/tmp/cpp-challenge/output.csv ctest
 
 CMD ["/out/bin/generator", "|", "/out/bin/processor"]
 

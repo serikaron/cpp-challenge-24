@@ -1,3 +1,4 @@
 processor/cmake-build-debug
 output
 .idea
+ignore

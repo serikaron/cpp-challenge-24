@@ -18,6 +18,7 @@ include(Catch)
 
 add_executable(core_tests
         Broker.test.cpp
+        Persistor.test.cpp
 )
 target_link_libraries(core_tests PRIVATE Catch2::Catch2WithMain core)
 catch_discover_tests(core_tests)
